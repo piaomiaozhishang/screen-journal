@@ -9,6 +9,14 @@ import 'ui/onboarding/onboarding_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 单个页面构建异常时显示克制的错误占位，而不是整屏灰死
+  ErrorWidget.builder = (details) {
+    FlutterError.presentError(details);
+    return const _BuildErrorPlaceholder();
+  };
+  // 应用图标较多，收紧图片内存缓存，降低长时间使用后的内存压力
+  PaintingBinding.instance.imageCache.maximumSize = 400;
+  PaintingBinding.instance.imageCache.maximumSizeBytes = 60 << 20;
   final state = AppState();
   runApp(
     ChangeNotifierProvider.value(
@@ -18,19 +26,33 @@ Future<void> main() async {
   );
 }
 
+class _BuildErrorPlaceholder extends StatelessWidget {
+  const _BuildErrorPlaceholder();
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      alignment: Alignment.center,
+      child: Icon(Icons.error_outline,
+          size: 38, color: Theme.of(context).colorScheme.error.withValues(alpha: 0.55)),
+    );
+  }
+}
+
+/// 整套界面配色全部由 ColorScheme 派生：更换种子色时，背景、卡片、
+/// 导航栏、输入框、弹窗等都会整体改变色调，而不只是强调色。
 ThemeData buildTheme(int seed, Brightness brightness) {
   final scheme = ColorScheme.fromSeed(
     seedColor: Color(seed),
     brightness: brightness,
   );
-  final isDark = brightness == Brightness.dark;
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
-    scaffoldBackgroundColor: isDark ? const Color(0xFF111413) : const Color(0xFFF6F8F8),
+    scaffoldBackgroundColor: scheme.surfaceContainerLowest,
     cardTheme: CardThemeData(
       elevation: 0,
-      color: isDark ? const Color(0xFF1C211F) : Colors.white,
+      color: scheme.surfaceContainer,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       margin: EdgeInsets.zero,
     ),
@@ -39,11 +61,10 @@ ThemeData buildTheme(int seed, Brightness brightness) {
       scrolledUnderElevation: 0,
       centerTitle: false,
       titleTextStyle: TextStyle(
-          fontSize: 18, fontWeight: FontWeight.w700,
-          color: isDark ? Colors.white : Colors.black87),
+          fontSize: 18, fontWeight: FontWeight.w700, color: scheme.onSurface),
     ),
     listTileTheme: ListTileThemeData(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(14))),
+      shape: RoundedRectangleBorder(borderRadius: const BorderRadius.all(Radius.circular(14))),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -53,20 +74,35 @@ ThemeData buildTheme(int seed, Brightness brightness) {
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: isDark ? const Color(0xFF232927) : Colors.white,
+      fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
+        borderSide: BorderSide(color: scheme.outlineVariant),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.black.withValues(alpha: 0.08)),
+        borderSide: BorderSide(color: scheme.outlineVariant),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide(color: scheme.primary, width: 1.6),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: isDark ? const Color(0xFF171C1A) : Colors.white,
+      backgroundColor: scheme.surface,
+      surfaceTintColor: Colors.transparent,
+      indicatorColor: scheme.secondaryContainer,
+      elevation: 3,
+    ),
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: scheme.surfaceContainer,
       surfaceTintColor: Colors.transparent,
     ),
+    dialogTheme: DialogThemeData(
+      backgroundColor: scheme.surfaceContainer,
+      surfaceTintColor: Colors.transparent,
+    ),
+    dividerColor: scheme.outlineVariant,
   );
 }
 

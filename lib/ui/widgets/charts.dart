@@ -4,63 +4,74 @@ import 'package:flutter/material.dart';
 
 import '../../core/format.dart';
 
-class BarPoint {
+class ChartPoint {
   final String label;
   final int ms;
   final Color? color;
-  const BarPoint(this.label, this.ms, {this.color});
+  const ChartPoint(this.label, this.ms, {this.color});
 }
 
-/// 通用柱状图（周/月/年/永久序列）
-class UsageBarChart extends StatelessWidget {
-  final List<BarPoint> points;
+/// 通用趋势波形图（平滑曲线 + 渐变面积，日/周/月/年/永久序列通用）
+class UsageWaveChart extends StatelessWidget {
+  final List<ChartPoint> points;
   final double height;
-  const UsageBarChart({super.key, required this.points, this.height = 200});
+  const UsageWaveChart({super.key, required this.points, this.height = 200});
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     if (points.isEmpty) {
       return SizedBox(
         height: height,
         child: Center(
           child: Text(AppStrings.t('暂无数据'),
-              style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38))),
+              style: TextStyle(fontSize: 12, color: scheme.onSurface.withValues(alpha: 0.38))),
         ),
       );
     }
     final maxMs = points.map((p) => p.ms).fold<int>(0, (a, b) => a > b ? a : b);
-    final base = Theme.of(context).colorScheme.primary;
-    final grid = Colors.black.withValues(alpha: 0.05);
-
-    final bars = <BarChartGroupData>[];
-    for (var i = 0; i < points.length; i++) {
-      bars.add(BarChartGroupData(x: i, barRods: [
-        BarChartRodData(
-          toY: points[i].ms / 60000,
-          color: points[i].color ?? base,
-          width: _rodWidth(points.length),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              (points[i].color ?? base).withValues(alpha: 0.55),
-              points[i].color ?? base,
-            ],
-          ),
-        ),
-      ]));
-    }
+    final base = scheme.primary;
+    final grid = scheme.onSurface.withValues(alpha: 0.06);
+    final mins = points.map((p) => p.ms / 60000).toList();
 
     final labelStep = (points.length / 6).ceil().clamp(1, 100);
 
     return SizedBox(
       height: height,
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
+      child: LineChart(
+        LineChartData(
+          minY: 0,
           maxY: (maxMs / 60000) * 1.25 + 0.5,
-          barGroups: bars,
+          lineBarsData: [
+            LineChartBarData(
+              spots: [
+                for (var i = 0; i < points.length; i++)
+                  FlSpot(i.toDouble(), mins[i]),
+              ],
+              isCurved: true,
+              curveSmoothness: 0.32,
+              preventCurveOverShooting: true,
+              color: base,
+              barWidth: 2.6,
+              isStrokeCapRound: true,
+              dotData: FlDotData(
+                show: points.length <= 31,
+                getDotPainter: (spot, percent, bar, index) =>
+                    FlDotCirclePainter(radius: 2.6, color: base, strokeWidth: 0),
+              ),
+              belowBarData: BarAreaData(
+                show: true,
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    base.withValues(alpha: 0.30),
+                    base.withValues(alpha: 0.03),
+                  ],
+                ),
+              ),
+            ),
+          ],
           gridData: FlGridData(
             show: true,
             drawVerticalLine: false,
@@ -75,9 +86,9 @@ class UsageBarChart extends StatelessWidget {
                 showTitles: true,
                 reservedSize: 34,
                 getTitlesWidget: (v, meta) {
-                  if (v == meta.max) return const SizedBox.shrink();
+                  if (v == meta.max || v == meta.min) return const SizedBox.shrink();
                   return Text('${v.round()}',
-                      style: TextStyle(fontSize: 9, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.38)));
+                      style: TextStyle(fontSize: 9, color: scheme.onSurface.withValues(alpha: 0.38)));
                 },
               ),
             ),
@@ -85,6 +96,7 @@ class UsageBarChart extends StatelessWidget {
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 26,
+                interval: 1,
                 getTitlesWidget: (v, meta) {
                   final i = v.round();
                   if (i < 0 || i >= points.length || i % labelStep != 0) {
@@ -93,32 +105,26 @@ class UsageBarChart extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(points[i].label,
-                        style: TextStyle(fontSize: 9, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45))),
+                        style: TextStyle(fontSize: 9, color: scheme.onSurface.withValues(alpha: 0.45))),
                   );
                 },
               ),
             ),
           ),
-          barTouchData: BarTouchData(
-            touchTooltipData: BarTouchTooltipData(
-              getTooltipItem: (group, gIdx, rod, rIdx) {
-                final p = points[group.x];
-                return BarTooltipItem(
-                  '${p.label}\n${Fmt.duration(Duration(milliseconds: p.ms))}',
-                  TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
-                );
-              },
+          lineTouchData: LineTouchData(
+            touchTooltipData: LineTouchTooltipData(
+              getTooltipItems: (spots) => [
+                for (final sp in spots)
+                  LineTooltipItem(
+                    '${points[sp.spotIndex].label}\n${Fmt.duration(Duration(milliseconds: points[sp.spotIndex].ms))}',
+                    TextStyle(color: scheme.onPrimary, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+              ],
             ),
           ),
         ),
       ),
     );
-  }
-
-  double _rodWidth(int n) {
-    if (n <= 7) return 18;
-    if (n <= 31) return 7;
-    return 5;
   }
 }
 
@@ -218,7 +224,7 @@ class DayTimeline extends StatelessWidget {
                 return (from, to);
               }).toList(),
               color: Theme.of(context).colorScheme.primary,
-              track: Colors.black.withValues(alpha: 0.06),
+              track: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
             ),
           ),
         ),
