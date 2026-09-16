@@ -217,7 +217,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> setWindowsAutoStart(bool on) => native.setAutoStart(on);
 
   /// 当前版本号（与 pubspec version 保持一致）
-  static const String appVersion = '1.0.3';
+  static const String appVersion = '1.0.4';
 
   // ---------------- 外观：主题 ----------------
   ThemeMode get themeMode => switch (db.getSetting('theme_mode') ?? 'system') {
