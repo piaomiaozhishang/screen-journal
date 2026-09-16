@@ -151,7 +151,7 @@ windows/runner C++：前台窗口轮询、MethodChannel、开机自启、回桌�
 
 本项目以 **MIT License** 开源，详见 [LICENSE](LICENSE)。
 
-- 欢迎提交 [Issue](https://github.com/) 反馈问题与建议；
+- 欢迎提交 [Issue](https://github.com/piaomiaozhishang/screen-journal/issues) 反馈问题与建议；
 - 欢迎 Fork / PR 参与开发；
 - 发布版本与签名说明见 [CHANGELOG.md](CHANGELOG.md)。
 
