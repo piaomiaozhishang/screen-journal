@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_desc">屏记仅在应用达到你设定的每日使用限额时，使用“回到桌面”全局动作进行提醒，不监听、不读取、不上传任何界面内容。</string>
+</resources>
