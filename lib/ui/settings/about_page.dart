@@ -59,7 +59,9 @@ class AboutPage extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Text(
-              AppStrings.t('屏记 · 屏幕时间记录 v1.0.3\n')
+              (AppStrings.lang == 'en'
+                  ? 'Screen Journal · v${AppState.appVersion}\n'
+                  : '屏记 · 屏幕时间记录 v${AppState.appVersion}\n')
               + AppStrings.t('数据默认保存在本机；卸载应用 / 清除数据会丢失统计，请定期使用备份或 WebDAV 同步。\n')
               + AppStrings.t('统计自安装本应用起永久保留，并可导入系统已有的历史记录。'),
               style: TextStyle(

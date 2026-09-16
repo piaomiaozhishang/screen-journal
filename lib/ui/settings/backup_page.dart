@@ -65,11 +65,14 @@ class BackupPage extends StatelessWidget {
           ),
           SizedBox(height: 20),
           SectionCard(
-            color: Color(0xFFFFF8E1),
+            color: Theme.of(context).colorScheme.tertiaryContainer.withValues(alpha: 0.5),
             child: Text(
               AppStrings.t('建议：换机或重装 App 前先导出备份；多台设备日常统计推荐使用 WebDAV 同步，')
               + AppStrings.t('备份文件用于长期归档或一次性迁移。'),
-              style: TextStyle(fontSize: 12, height: 1.7),
+              style: TextStyle(
+                  fontSize: 12,
+                  height: 1.7,
+                  color: Theme.of(context).colorScheme.onTertiaryContainer),
             ),
           ),
         ],

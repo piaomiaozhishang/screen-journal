@@ -164,19 +164,24 @@ class _WebDavPageState extends State<WebDavPage> {
             const SizedBox(height: 14),
             SectionCard(
               color: _reportOk
-                  ? const Color(0xFFE8F5E9)
-                  : const Color(0xFFFFEBEE),
+                  ? Theme.of(context).colorScheme.secondaryContainer
+                  : Theme.of(context).colorScheme.errorContainer,
               child: Row(
                 children: [
                   Icon(_reportOk ? Icons.check_circle_outline : Icons.error_outline,
-                      color: _reportOk ? Colors.green : Colors.red, size: 20),
+                      color: _reportOk
+                          ? Theme.of(context).colorScheme.onSecondaryContainer
+                          : Theme.of(context).colorScheme.onErrorContainer,
+                      size: 20),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(_report!,
                         style: TextStyle(
                             fontSize: 12.5,
                             height: 1.5,
-                            color: _reportOk ? Colors.green.shade800 : Colors.red.shade800)),
+                            color: _reportOk
+                                ? Theme.of(context).colorScheme.onSecondaryContainer
+                                : Theme.of(context).colorScheme.onErrorContainer)),
                   ),
                 ],
               ),
