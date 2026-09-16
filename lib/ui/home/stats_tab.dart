@@ -23,6 +23,9 @@ class _StatsTabState extends State<StatsTab> {
   DateTime? _cs; // 自定义区间起
   DateTime? _ce; // 自定义区间止
 
+  _StatsSnap? _snap;
+  String? _snapKey;
+
   bool get _custom => _cs != null && _ce != null;
 
   Future<void> _pickCustomRange() async {
@@ -49,17 +52,57 @@ class _StatsTabState extends State<StatsTab> {
         _donutSel = null;
       });
 
-  @override
-  Widget build(BuildContext context) {
-    final s = context.watch<AppState>();
-    final now = DateTime.now();
+  /// 统计数据快照缓存：只在区间 / 自定义日期 / 采集与清单刷新 / 分类与标签变化时重算，
+  /// 避免图表动画、环形图点选等高频重建反复执行多组 SQL（永久数据量大时尤为关键）。
+  _StatsSnap _snapshot(AppState s, DateTime now) {
+    final db = s.db;
+    final rawDb = db.db;
+    final lastCollect = db.getSetting('last_collect_ms') ?? '';
+    final lastRefresh = db.getSetting('last_refresh_ms') ?? '';
+    final catSig = s.categories
+        .map((c) => '${c.id}.${c.colorValue}.${c.iconPath ?? ''}.${c.name}')
+        .join('|');
+    final catRows =
+        (rawDb.select('SELECT COUNT(*) n FROM app_categories').first['n'] as int?) ?? 0;
+    final key = [
+      _range.index,
+      _cs?.millisecondsSinceEpoch ?? 0,
+      _ce?.millisecondsSinceEpoch ?? 0,
+      DayX.keyOf(now),
+      lastCollect,
+      lastRefresh,
+      catSig,
+      catRows,
+    ].join('::');
+    if (_snapKey == key && _snap != null) return _snap!;
+
     final ranking = s.stats.ranking(_range, now,
         limit: 300, customStart: _cs, customEnd: _ce);
     final slices = s.stats.categorySlices(_range, now,
         customStart: _cs, customEnd: _ce);
     final total = ranking.fold<int>(0, (a, b) => a + b.timeMs);
-    final bars = _buildBars(s, now);
-    final uncategorized = s.appsOfCategory(null).length;
+    final snap = _StatsSnap(
+      ranking: ranking,
+      slices: slices,
+      total: total,
+      bars: _buildBars(s, now),
+      uncategorized: s.appsOfCategory(null).length,
+    );
+    _snapKey = key;
+    _snap = snap;
+    return snap;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppState>();
+    final now = DateTime.now();
+    final snap = _snapshot(s, now);
+    final ranking = snap.ranking;
+    final slices = snap.slices;
+    final total = snap.total;
+    final bars = snap.bars;
+    final uncategorized = snap.uncategorized;
 
     // 环形图点击态：中心显示所选分类
     final sel = _donutSel != null && _donutSel! < slices.length ? _donutSel! : null;
@@ -207,7 +250,7 @@ class _StatsTabState extends State<StatsTab> {
                   Text(_chartTitle(),
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
-                  UsageBarChart(points: bars),
+                  UsageWaveChart(points: bars),
                 ],
               ),
             ),
@@ -217,11 +260,12 @@ class _StatsTabState extends State<StatsTab> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF3E0),
+                  color: Colors.orange.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(children: [
-                  Icon(Icons.label_off_outlined, size: 18, color: Colors.orange),
+                  Icon(Icons.label_off_outlined, size: 18,
+                      color: Colors.orange.withValues(alpha: 0.9)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(AppStrings.uncategorizedHint(uncategorized),
@@ -270,12 +314,12 @@ class _StatsTabState extends State<StatsTab> {
     };
   }
 
-  List<BarPoint> _buildBars(AppState s, DateTime now) {
+  List<ChartPoint> _buildBars(AppState s, DateTime now) {
     if (_custom) {
       final series = s.stats.dailySeries(null, _cs!, _ce!);
       return [
         for (final e in series)
-          BarPoint('${DayX.parseKey(e.key).month}/${DayX.parseKey(e.key).day}', e.value),
+          ChartPoint('${DayX.parseKey(e.key).month}/${DayX.parseKey(e.key).day}', e.value),
       ];
     }
     switch (_range) {
@@ -305,19 +349,19 @@ class _StatsTabState extends State<StatsTab> {
         }
         return [
           for (var h = 0; h < 24; h++)
-            if (buckets[h] > 0) BarPoint(AppStrings.hour(h), buckets[h]),
+            if (buckets[h] > 0) ChartPoint(AppStrings.hour(h), buckets[h]),
         ];
       case TimeRange.week:
         final start = DayX.startOfWeek(now);
         final series = s.stats.dailySeries(null, start, now);
         return [
           for (final e in series)
-            BarPoint(AppStrings.weekdayIdx(DayX.parseKey(e.key).weekday), e.value)
+            ChartPoint(AppStrings.weekdayIdx(DayX.parseKey(e.key).weekday), e.value)
         ];
       case TimeRange.month:
         final start = DayX.startOfMonth(now);
         final series = s.stats.dailySeries(null, start, now);
-        return [for (final e in series) BarPoint('${DayX.parseKey(e.key).day}', e.value)];
+        return [for (final e in series) ChartPoint('${DayX.parseKey(e.key).day}', e.value)];
       case TimeRange.year:
         final start = DayX.startOfYear(now);
         final series = s.stats.dailySeries(null, start, now);
@@ -325,7 +369,7 @@ class _StatsTabState extends State<StatsTab> {
         for (final e in series) {
           m[DayX.parseKey(e.key).month - 1] += e.value;
         }
-        return [for (var i = 0; i < 12; i++) BarPoint(AppStrings.month(i + 1), m[i])];
+        return [for (var i = 0; i < 12; i++) ChartPoint(AppStrings.month(i + 1), m[i])];
       case TimeRange.forever:
         final series = s.stats.dailySeries(
             null, now.subtract(const Duration(days: 1825)), now);
@@ -337,7 +381,7 @@ class _StatsTabState extends State<StatsTab> {
         final keys = months.keys.toList()..sort();
         return [
           for (final k in keys)
-            BarPoint(AppStrings.month(int.parse(k.substring(5))), months[k]!)
+            ChartPoint(AppStrings.month(int.parse(k.substring(5))), months[k]!)
         ];
     }
   }
@@ -349,6 +393,21 @@ class _StatsTabState extends State<StatsTab> {
       MaterialPageRoute(builder: (_) => AppDetailPage(appId: appId)),
     );
   }
+}
+
+class _StatsSnap {
+  final List<AppTotal> ranking;
+  final List<CategorySlice> slices;
+  final int total;
+  final List<ChartPoint> bars;
+  final int uncategorized;
+  const _StatsSnap({
+    required this.ranking,
+    required this.slices,
+    required this.total,
+    required this.bars,
+    required this.uncategorized,
+  });
 }
 
 class _RankingTile extends StatelessWidget {
@@ -393,7 +452,7 @@ class _RankingTile extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: pct.clamp(0.01, 1),
                       minHeight: 4,
-                      backgroundColor: Colors.black.withValues(alpha: 0.07),
+                      backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
                     ),
                   ),
                 ],
