@@ -1,0 +1,60 @@
+name: screen_time_journal
+description: "屏记 - 可分类、永久记录、WebDAV 多端同步的屏幕时间统计软件（Android / Windows）。"
+publish_to: 'none'
+version: 1.0.3+3
+
+environment:
+  sdk: ^3.13.3
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # 国际化（Material 组件本地化）
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # 状态管理
+  provider: ^6.1.2
+
+  # 本地数据库（跨 Android / Windows，自带原生 sqlite 库）
+  sqlite3: ^2.4.6
+  sqlite3_flutter_libs: ^0.5.27
+
+  # 文件路径 / 选择
+  path_provider: ^2.1.5
+  path: ^1.9.0
+  file_picker: ^8.1.2
+
+  # 图表
+  fl_chart: ">=0.70.0 <2.0.0"
+
+  # WebDAV 同步
+  dio: ^5.7.0
+
+  # 外部链接跳转（GitHub / 网盘 / Telegram 等）
+  url_launcher: ^6.3.2
+
+  # 分类自定义图标：选图 + 裁剪
+  image_picker: ^1.1.2
+  image_cropper: ^8.1.0
+
+  # 国际化 / 日期
+  intl: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+# 间接依赖（path_provider 的 iOS/macOS 实现带入）；9.6.x 的 native assets
+# build hook 使用了当前 Dart 3.13 尚不含的 Architecture.arm64e，会导致 Android/Windows
+# 构建在编译 hook 时失败。固定到兼容版本；该包不参与 Android/Windows 运行时。
+dependency_overrides:
+  objective_c: 9.2.1
+
+flutter:
+  uses-material-design: true
