@@ -11,14 +11,18 @@ import 'webdav_page.dart';
 class SettingsTab extends StatelessWidget {
   const SettingsTab({super.key});
 
-  /// 可选强调色（Material 3 seed）
+  /// 可选主题色调（Material 3 seed，整套界面配色随之变化）
   static const _accentSeeds = <int>[
     0xFF1F9E89, // 青绿（默认）
     0xFF2D6CDF, // 蓝
+    0xFF3949AB, // 靛蓝
     0xFF7C4DFF, // 紫
     0xFFE91E63, // 粉
+    0xFFD32F2F, // 红
     0xFFF57C00, // 橙
+    0xFFF2A900, // 琥珀
     0xFF43A047, // 绿
+    0xFF00ACC1, // 青
     0xFF8D6E63, // 棕
     0xFF607D8B, // 蓝灰
   ];
@@ -95,7 +99,7 @@ class SettingsTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(AppStrings.t('强调色'),
+                Text(AppStrings.t('主题色调'),
                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 Wrap(
@@ -196,7 +200,7 @@ class SettingsTab extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(15),
         child: ListTile(
           leading: Icon(icon, size: 21),
@@ -229,7 +233,7 @@ class _Switch extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(15),
         child: SwitchListTile(
           secondary: Icon(icon, size: 21),
@@ -261,7 +265,7 @@ class _WindowsAutoStartState extends State<_WindowsAutoStart> {
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       child: Material(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(15),
         child: SwitchListTile(
           secondary: Icon(Icons.power_settings_new, size: 21),
@@ -290,7 +294,7 @@ class _DeviceNameTileState extends State<_DeviceNameTile> {
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
     return Material(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surfaceContainer,
       borderRadius: BorderRadius.circular(15),
       child: ListTile(
         leading: Icon(Icons.devices, size: 21),
@@ -400,7 +404,7 @@ class _PermissionsPageState extends State<PermissionsPage> with WidgetsBindingOb
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
         child: ListTile(
           title: Text(title, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
