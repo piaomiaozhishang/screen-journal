@@ -1,0 +1,32 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 计时器顶部按钮 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M49,23 h10 v6 h-10 z" />
+    <!-- 表盘圆环 -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5.5"
+        android:fillColor="#00000000"
+        android:pathData="M54,32 m-25,0 a25,25 0 1,0 50,0 a25,25 0 1,0 -50,0 z" />
+    <!-- 分针 -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M54,57 L54,42" />
+    <!-- 时针 -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:pathData="M54,57 L65,63" />
+    <!-- 中心点 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,57 m-3,0 a3,3 0 1,0 6,0 a3,3 0 1,0 -6,0 z" />
+</vector>
