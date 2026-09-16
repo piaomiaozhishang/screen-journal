@@ -145,7 +145,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
                 if (_range == TimeRange.day)
                   DayTimeline(day: DayX.dateOnly(now), segments: _todaySegments(s, app.id, now))
                 else
-                  UsageBarChart(points: _series(s, app.id, _range, now), height: 180),
+                  UsageWaveChart(points: _series(s, app.id, _range, now), height: 180),
               ],
             ),
           ),
@@ -202,7 +202,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
     return sessions.map((e) => (e.startMs, e.endMs)).toList();
   }
 
-  List<BarPoint> _series(AppState s, int appId, TimeRange range, DateTime now) {
+  List<ChartPoint> _series(AppState s, int appId, TimeRange range, DateTime now) {
     DateTime start;
     switch (range) {
       case TimeRange.week:
@@ -210,12 +210,12 @@ class _AppDetailPageState extends State<AppDetailPage> {
         final series = s.stats.dailySeries(appId, start, now);
         return [
           for (final e in series)
-            BarPoint(AppStrings.weekdayIdx(DayX.parseKey(e.key).weekday), e.value)
+            ChartPoint(AppStrings.weekdayIdx(DayX.parseKey(e.key).weekday), e.value)
         ];
       case TimeRange.month:
         start = DayX.startOfMonth(now);
         final series = s.stats.dailySeries(appId, start, now);
-        return [for (final e in series) BarPoint('${DayX.parseKey(e.key).day}', e.value)];
+        return [for (final e in series) ChartPoint('${DayX.parseKey(e.key).day}', e.value)];
       case TimeRange.year:
         start = DayX.startOfYear(now);
         final series = s.stats.dailySeries(appId, start, now);
@@ -223,7 +223,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
         for (final e in series) {
           m[DayX.parseKey(e.key).month - 1] += e.value;
         }
-        return [for (var i = 0; i < 12; i++) BarPoint(AppStrings.month(i + 1), m[i])];
+        return [for (var i = 0; i < 12; i++) ChartPoint(AppStrings.month(i + 1), m[i])];
       case TimeRange.forever:
         final first = s.db.firstUsageDay(appId);
         start = first == null
@@ -236,7 +236,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
           months[mk] = (months[mk] ?? 0) + e.value;
         }
         final keys = months.keys.toList()..sort();
-        return [for (final k in keys) BarPoint(k.substring(2), months[k]!)];
+        return [for (final k in keys) ChartPoint(k.substring(2), months[k]!)];
       case TimeRange.day:
         return const [];
     }
@@ -245,7 +245,7 @@ class _AppDetailPageState extends State<AppDetailPage> {
   Future<void> _editTags(AppEntry app, Set<int> selected, List<Category> cats) async {
     await showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (ctx) => StatefulBuilder(
@@ -415,7 +415,7 @@ class _LimitCardState extends State<_LimitCard> {
               child: LinearProgressIndicator(
                 value: pct,
                 minHeight: 8,
-                backgroundColor: Colors.black.withValues(alpha: 0.07),
+                backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
                 color: pct >= 1 ? Colors.red : Theme.of(context).colorScheme.primary,
               ),
             ),
