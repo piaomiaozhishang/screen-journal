@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lpinyin/lpinyin.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../core/l10n.dart';
 import 'package:provider/provider.dart';
@@ -202,7 +203,7 @@ class _CategoryAppsPageState extends State<CategoryAppsPage> {
                 final a = apps[i];
                 final cats = s.categoryIdsOfApp(a.id);
                 return Material(
-                  color: Colors.white,
+                  color: Theme.of(context).colorScheme.surfaceContainer,
                   borderRadius: BorderRadius.circular(14),
                   child: InkWell(
                     borderRadius: BorderRadius.circular(14),
@@ -289,73 +290,25 @@ class _CategoryAppsPageState extends State<CategoryAppsPage> {
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (ctx) {
-        return StatefulBuilder(builder: (ctx, setSheet) {
-          // 未分类页：展示“未分类”的应用供选择加入；分类页：展示全部应用
-          final list = widget.categoryId == null
-              ? s.appsOfCategory(null)
-              : all;
-          return DraggableScrollableSheet(
-            expand: false,
-            initialChildSize: 0.78,
-            maxChildSize: 0.92,
-            builder: (_, controller) => Column(
-              children: [
-                Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(AppStrings.t('选择应用（可跨分类多选）'),
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    controller: controller,
-                    itemCount: list.length,
-                    itemBuilder: (_, i) {
-                      final a = list[i];
-                      final checked = selected.contains(a.id);
-                      return CheckboxListTile(
-                        value: checked,
-                        onChanged: (v) => setSheet(() {
-                          if (v == true) {
-                            selected.add(a.id);
-                          } else {
-                            selected.remove(a.id);
-                          }
-                        }),
-                        secondary: AppIcon(
-                            iconPath: a.iconPath, name: a.name, size: 36,
-                            uninstalled: a.uninstalled),
-                        title: Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(a.package,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 10.5)),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: EdgeInsets.all(14),
-                  child: FilledButton(
-                    child: Text(AppStrings.t('保存')),
-                    onPressed: () {
-                      if (widget.categoryId != null) {
-                        s.setAppCategoriesBulk(widget.categoryId!, selected);
-                      } else {
-                        // 未分类页仅用于把应用加入某个分类
-                      }
-                      Navigator.pop(ctx);
-                      setState(() {});
-                    },
-                  ),
-                ),
-              ],
-            ),
-          );
-        });
+        // 未分类页：展示“未分类”的应用供选择加入；分类页：展示全部应用
+        final list = widget.categoryId == null
+            ? s.appsOfCategory(null)
+            : all;
+        return _AppPickerSheet(
+          apps: list,
+          selected: selected,
+          onSave: () {
+            if (widget.categoryId != null) {
+              s.setAppCategoriesBulk(widget.categoryId!, selected);
+            }
+            Navigator.pop(ctx);
+            setState(() {});
+          },
+        );
       },
     );
     // 未分类页的选择需要询问加入哪个分类
@@ -375,7 +328,7 @@ class _CategoryAppsPageState extends State<CategoryAppsPage> {
     }
     final cid = await showModalBottomSheet<int>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
       builder: (_) => SafeArea(
@@ -404,6 +357,239 @@ class _CategoryAppsPageState extends State<CategoryAppsPage> {
       }
       setState(() {});
     }
+  }
+}
+
+// ---------------- 添加应用：搜索 + A-Z 字母索引 ----------------
+
+/// 取名称首字的分组字母（A-Z，中文按拼音首字母，无法识别归 #）
+String _nameInitial(String name) {
+  final s = name.trim();
+  if (s.isEmpty) return '#';
+  final first = s[0];
+  if (RegExp(r'[A-Za-z]').hasMatch(first)) return first.toUpperCase();
+  final py = PinyinHelper.getPinyin(first);
+  if (py.isNotEmpty && RegExp(r'^[A-Za-z]').hasMatch(py)) {
+    return py[0].toUpperCase();
+  }
+  return '#';
+}
+
+int _initialRank(String l) => l == '#' ? 26 : l.codeUnitAt(0) - 65;
+
+class _AppPickerSheet extends StatefulWidget {
+  final List<AppEntry> apps;
+  final Set<int> selected;
+  final VoidCallback onSave;
+  const _AppPickerSheet({
+    required this.apps,
+    required this.selected,
+    required this.onSave,
+  });
+
+  @override
+  State<_AppPickerSheet> createState() => _AppPickerSheetState();
+}
+
+class _AppPickerSheetState extends State<_AppPickerSheet> {
+  String _query = '';
+  final Map<String, GlobalKey> _sectionKeys = {};
+
+  List<AppEntry> _filtered() {
+    final q = _query.trim().toLowerCase();
+    Iterable<AppEntry> list = widget.apps;
+    if (q.isNotEmpty) {
+      list = list.where((a) =>
+          a.name.toLowerCase().contains(q) ||
+          a.package.toLowerCase().contains(q));
+    }
+    final out = list.toList()
+      ..sort((a, b) {
+        final ra = _initialRank(_nameInitial(a.name));
+        final rb = _initialRank(_nameInitial(b.name));
+        if (ra != rb) return ra.compareTo(rb);
+        return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+      });
+    return out;
+  }
+
+  /// 按首字母分组（保持排序）
+  Map<String, List<AppEntry>> _groups(List<AppEntry> list) {
+    final g = <String, List<AppEntry>>{};
+    for (final a in list) {
+      final l = _nameInitial(a.name);
+      (g[l] ??= <AppEntry>[]).add(a);
+    }
+    final keys = g.keys.toList()
+      ..sort((x, y) => _initialRank(x).compareTo(_initialRank(y)));
+    return {for (final k in keys) k: g[k]!};
+  }
+
+  void _jumpTo(ScrollController controller, Map<String, List<AppEntry>> groups,
+      List<String> keys, String letter) {
+    if (!keys.contains(letter)) return;
+    var offset = 0.0;
+    for (final k in keys) {
+      if (k == letter) break;
+      offset += 30.0 + groups[k]!.length * 58.0;
+    }
+    final maxExtent = controller.position.maxScrollExtent;
+    controller.jumpTo(offset.clamp(0.0, maxExtent));
+    // 懒加载的目标分组构建后再精确对齐
+    Future.delayed(const Duration(milliseconds: 90), () {
+      final kctx = _sectionKeys[letter]?.currentContext;
+      if (kctx != null && kctx.mounted) {
+        Scrollable.ensureVisible(kctx,
+            duration: const Duration(milliseconds: 200),
+            alignment: 0,
+            curve: Curves.easeOut);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final searching = _query.trim().isNotEmpty;
+    final list = _filtered();
+    final groups = _groups(list);
+    final keys = groups.keys.toList();
+
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.85,
+      maxChildSize: 0.95,
+      builder: (_, controller) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+            child: Text(AppStrings.t('选择应用（可跨分类多选）'),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: TextField(
+              onChanged: (v) => setState(() => _query = v),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                isDense: true,
+                prefixIcon: const Icon(Icons.search, size: 20),
+                hintText: AppStrings.t('搜索应用'),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.clear, size: 18),
+                        onPressed: () => setState(() => _query = ''),
+                      ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Stack(
+              children: [
+                if (list.isEmpty)
+                  Center(
+                    child: Text(AppStrings.t('无匹配应用'),
+                        style:
+                            TextStyle(color: scheme.onSurface.withValues(alpha: 0.45))),
+                  )
+                else
+                  ListView(
+                    controller: controller,
+                    padding: const EdgeInsets.only(right: 24, bottom: 12),
+                    children: [
+                      if (searching)
+                        for (final a in list) _appTile(a)
+                      else
+                        for (final k in keys) ...[
+                          Container(
+                            key: _sectionKeys.putIfAbsent(k, () => GlobalKey()),
+                            padding: const EdgeInsets.fromLTRB(20, 10, 12, 4),
+                            alignment: Alignment.centerLeft,
+                            child: Text(k,
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: scheme.primary)),
+                          ),
+                          for (final a in groups[k]!) _appTile(a),
+                        ],
+                    ],
+                  ),
+                if (!searching && keys.isNotEmpty)
+                  Positioned(
+                    right: 1,
+                    top: 6,
+                    bottom: 6,
+                    child: Center(
+                      child: Container(
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
+                        decoration: BoxDecoration(
+                          color:
+                              scheme.surfaceContainerHighest.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (final k in keys)
+                              InkWell(
+                                onTap: () => _jumpTo(controller, groups, keys, k),
+                                borderRadius: BorderRadius.circular(8),
+                                child: SizedBox(
+                                  width: 18,
+                                  height: keys.length > 20 ? 15 : 19,
+                                  child: Center(
+                                    child: Text(k,
+                                        style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: scheme.primary)),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(14),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: widget.onSave,
+                child: Text(AppStrings.t('保存')),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _appTile(AppEntry a) {
+    return CheckboxListTile(
+      value: widget.selected.contains(a.id),
+      onChanged: (v) => setState(() {
+        if (v == true) {
+          widget.selected.add(a.id);
+        } else {
+          widget.selected.remove(a.id);
+        }
+      }),
+      secondary: AppIcon(
+          iconPath: a.iconPath, name: a.name, size: 36,
+          uninstalled: a.uninstalled),
+      title: Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(a.package,
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 10.5)),
+    );
   }
 }
 
@@ -476,8 +662,16 @@ Future<void> _editCategory(BuildContext context, Category? existing) async {
                       icon: const Icon(Icons.photo_library_outlined, size: 18),
                       label: Text(AppStrings.t('选择图片')),
                       onPressed: () async {
-                        final path = await _pickCategoryImage(existing?.id);
-                        if (path != null) setSheet(() => iconPath = path);
+                        try {
+                          final path = await _pickCategoryImage(existing?.id);
+                          if (path != null) setSheet(() => iconPath = path);
+                        } catch (_) {
+                          if (ctx.mounted) {
+                            ScaffoldMessenger.of(ctx).showSnackBar(
+                              SnackBar(content: Text(AppStrings.t('图片选择失败，请重试'))),
+                            );
+                          }
+                        }
                       },
                     ),
                     if (iconPath != null) ...[
@@ -576,10 +770,24 @@ Future<void> _editCategory(BuildContext context, Category? existing) async {
   );
 }
 
-/// 选图 -> 方形裁剪 -> 存入应用目录，返回本地路径
+/// 选图 -> 方形裁剪 -> 存入应用目录，返回本地路径；用户取消返回 null，失败抛异常。
 Future<String?> _pickCategoryImage(int? categoryId) async {
-  final picked = await ImagePicker().pickImage(source: ImageSource.gallery);
+  final XFile? picked;
+  try {
+    // 限制读入尺寸，避免超大照片解码 OOM；不读取媒体位置等元数据，规避权限问题
+    picked = await ImagePicker().pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1080,
+      maxHeight: 1080,
+      imageQuality: 92,
+      requestFullMetadata: false,
+    );
+  } catch (e) {
+    throw Exception('gallery unavailable');
+  }
   if (picked == null) return null;
+
+  var srcPath = picked.path;
   try {
     final cropped = await ImageCropper().cropImage(
       sourcePath: picked.path,
@@ -601,15 +809,17 @@ Future<String?> _pickCategoryImage(int? categoryId) async {
         ),
       ],
     );
-    final srcPath = cropped?.path ?? picked.path;
-    final dir = Directory(
-        '${(await getApplicationSupportDirectory()).path}${Platform.pathSeparator}cat_icons');
-    if (!dir.existsSync()) dir.createSync(recursive: true);
-    final dest =
-        '${dir.path}${Platform.pathSeparator}cat_${categoryId ?? DateTime.now().millisecondsSinceEpoch}.png';
-    await File(srcPath).copy(dest);
-    return dest;
+    // 裁剪取消或失败时退回原图，不让流程中断
+    if (cropped != null) srcPath = cropped.path;
   } catch (_) {
-    return null;
+    srcPath = picked.path;
   }
+
+  final dir = Directory(
+      '${(await getApplicationSupportDirectory()).path}${Platform.pathSeparator}cat_icons');
+  if (!dir.existsSync()) dir.createSync(recursive: true);
+  final dest =
+      '${dir.path}${Platform.pathSeparator}cat_${categoryId ?? DateTime.now().millisecondsSinceEpoch}.png';
+  await File(srcPath).copy(dest);
+  return dest;
 }
