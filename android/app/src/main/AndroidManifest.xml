@@ -83,6 +83,13 @@
             android:turnScreenOn="true"
             android:theme="@style/OverlayTheme" />
 
+        <!-- image_cropper 裁剪页：ucrop 要求在宿主 manifest 显式注册，否则调起裁剪即崩溃 -->
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+
         <!-- 无障碍服务：限额时执行“回到桌面” -->
         <service
             android:name=".LimitAccessibilityService"
@@ -108,5 +115,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <!-- 暂时关闭 Impeller、使用成熟的 Skia 渲染，规避部分设备长时间使用后灰屏/花屏 -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
     </application>
 </manifest>

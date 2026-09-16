@@ -1,7 +1,7 @@
 name: screen_time_journal
 description: "屏记 - 可分类、永久记录、WebDAV 多端同步的屏幕时间统计软件（Android / Windows）。"
 publish_to: 'none'
-version: 1.0.3+3
+version: 1.0.4+4
 
 environment:
   sdk: ^3.13.3
@@ -43,6 +43,7 @@ dependencies:
 
   # 国际化 / 日期
   intl: any
+  lpinyin: ^2.0.3
 
 dev_dependencies:
   flutter_test:

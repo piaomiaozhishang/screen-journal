@@ -10,12 +10,14 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import org.json.JSONObject
 
-class MainActivity : FlutterActivity() {
+// image_picker / image_cropper 要求宿主 Activity 为 FlutterFragmentActivity，
+// 否则在部分 Android 版本上调起相册/裁剪页会直接崩溃。
+class MainActivity : FlutterFragmentActivity() {
 
     private val channelName = "com.screenjournal.app/native"
 
