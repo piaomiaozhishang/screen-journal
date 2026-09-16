@@ -271,7 +271,7 @@ class _CompareTabState extends State<CompareTab> {
                   borderRadius: BorderRadius.zero),
               BarChartRodData(
                   toY: pairs[i].$3 / 60000,
-                  color: Colors.blueGrey,
+                  color: cs.onSurfaceVariant,
                   width: pairs.length > 12 ? 4 : 7,
                   borderRadius: BorderRadius.zero),
             ]),
@@ -279,7 +279,7 @@ class _CompareTabState extends State<CompareTab> {
         gridData: FlGridData(
           drawVerticalLine: false,
           getDrawingHorizontalLine: (_) =>
-              FlLine(color: Colors.black.withValues(alpha: 0.06), strokeWidth: 1),
+              FlLine(color: cs.onSurface.withValues(alpha: 0.06), strokeWidth: 1),
         ),
         borderData: FlBorderData(show: false),
         titlesData: FlTitlesData(
